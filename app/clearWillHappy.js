@@ -18,7 +18,9 @@ function ClearWillHappy(ctx, canvas) {
     this.bombBalls = []; // 这里有小球代表爆炸的元素
     this.bombBallAutoCheck = true; // 开启小球自动检查爆炸
 
-    this.pos = []; //  [123, 123，123， 123] = [1, 3] 用这种键值得方式存储，方便查找鼠标的点击的是哪个元素
+    this.pos = []; //方便查找鼠标的点击的是哪个元素
+
+    this.replaceElement = false;
 }
 // 初始化
 ClearWillHappy.prototype.init = function () {
@@ -39,6 +41,7 @@ ClearWillHappy.prototype.init = function () {
             b.x = j*elementSize + x;
             b.y = i*elementSize + y;
             b.color = IMGSINFO[b.index].color;
+            b.ty = b.y;  // 每个元素向下走的趋势
             b.vy = 1; // 给一个向下的速度，现在是0
           //  b.px = i; // 这两个属性去掉，位置还是通过坐标来找吧，否则位置移动了就不好处理了
            // b.py = j;
@@ -145,22 +148,49 @@ ClearWillHappy.prototype.animate = function() {
     // console.log(WIDTH, HEIGHT);
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-    //  elementsListInfo.forEach((lines, i) => {
-    //     lines.forEach((element, j) => {
-    //         if (element.visibile) { // 显示正常图片
-    //             for (let k = i+1; k < line; k++) {
-    //                 elementsListInfo[k][j].num = 0;
-    //                 if (elementsListInfo[k][j].isBomb) {
-    //                     elementsListInfo[k][j].num += elementSize;
-    //                   //  elementsListInfo[k][j].isBomb = true;
-    //                 } else {
-    //                     break;
+     elementsListInfo.forEach((lines, i) => {
+        lines.forEach((element, j) => {
+            element.y += (element.ty - element.y) * 0.08;
+        })
+    });
+
+       // 将元素坐标位置修改，根据自身ty的属性
+    // if (!this.replaceElement) {
+    //         for (let len = elementsListInfo.length, i = len-1; i >= 0; i--) {
+    //             elementsListInfo[i].forEach((item,col)=>{
+    //                 if (item.visibile && Math.abs(item.y - item.ty) >= 0) {
+    //                    let pos = this._findElement({x:item.x+10, y:item.ty+10}); //找到现在的坐标
+                       
+    //                    this.replaceElement = true;
+    //                     if (pos) {
+    //                         const [tx, ty] = pos;
+    //                         let targetElement = elementsListInfo[tx][ty].index, // 已经爆炸过的元素属性
+    //                             targetColor = elementsListInfo[tx][ty].color,
+    //                             targetVisible =  elementsListInfo[tx][ty].visibile,
+
+    //                             sourceElement = elementsListInfo[i][col].index,  // 以前的坐标，里面有正确的元素属性
+    //                             sourceColor = elementsListInfo[i][col].color,
+    //                             sourceVisible = elementsListInfo[i][col].visibile;
+
+
+    //                         elementsListInfo[i][col].index = targetElement;
+    //                         elementsListInfo[i][col].color = targetColor;
+    //                         elementsListInfo[i][col].visibile = targetVisible;
+
+    //                         elementsListInfo[tx][ty].index = sourceElement;
+    //                         elementsListInfo[tx][ty].color = sourceColor;
+    //                         elementsListInfo[tx][ty].visibile = sourceVisible;
+    //                     }
+                        
+
+
     //                 }
-    //             }
-    //            element.y += elementsListInfo[i][j].num;
-    //         } 
-    //     })
-    // });
+                    
+    //             })
+    //         }
+    // }
+   
+
 
     this.draw(); // 绘制元素
     if (bombBalls.length > 0) {
@@ -214,7 +244,7 @@ ClearWillHappy.prototype._findElement = function({x, y}) {
         pos
     } = this;
     
-    // console.log(x, y, pos);
+   //  console.log(x, y, "找不到");
     let elem = pos.filter((element, key) => {
         return element[0] <= x && element[2] >= x && element[1] <= y && element[3] >= y
     })[0]
@@ -229,8 +259,8 @@ ClearWillHappy.prototype._findElement = function({x, y}) {
     //     }
     // }
     let sx = elem[4], sy = elem[5]
-    // console.log(elem[4], elem[5]);
-    if (!elem || !elementsListInfo[sx][sy].visibile) {
+  //   console.log("呵呵", elem[4], elem[5], elementsListInfo[sx][sy], "呵呵");
+    if (!elem ) {
         return false;
     }
     
@@ -271,11 +301,51 @@ ClearWillHappy.prototype._replaceElement = function() {
    
 };
 
-ClearWillHappy.prototype._setElementStatus = function(selectElements) {
-    selectElements.map(element=>{
-        element.index = -1;
-        element.visibile = false;
-    })
+// 找到了可以爆炸的地方
+ClearWillHappy.prototype._setElementStatus = function() {
+
+    const {elementsListInfo, elementSize, line} = this;
+    // console.log(selectElements);
+    // selectElements.sort(function(a, b) {
+    //     return b.y - a.y || -1;
+    // })
+    // selectElements.map(element=>{
+    //     element.index = -1;
+    //     element.visibile = false;
+       
+    //     for (let i = 0; i < elementsListInfo.length; i++) {
+    //         elementsListInfo[i].forEach(item=>{
+    //             if (item.x == element.x && item.y < element.y ) {
+    //                 item.ty += elementSize;
+    //             }
+    //         })
+    //     }
+    // })
+    
+    // 用这种方式解决溢出的问题了，上面的方式可能是因为重复计算的原因
+    // 现在可以正常降落了
+    for (let len = elementsListInfo.length, i = len-1; i >= 0; i--) {
+        elementsListInfo[i].forEach((item,col)=>{
+            if (!item.visibile) {
+                for (let k = i - 1; k >= 0; k--) {
+                    elementsListInfo[k][col].ty += elementSize;
+                }
+            }
+            
+        })
+    }
+
+  
+
+
+
+    console.log("执行了");
+    // 自动移动，这里找出每个元素的下层有几个空格，计算距离后添加到每个元素的身上
+    // 另一个思路，这里已经找到了这些要爆炸的元素，而且这些元素肯定是连续的，所以可以考虑通过这些元素来处理
+    // 
+    // 就用上面这个思路试一试
+    // 1、先排序，按照行从大到小排
+    
 };
 
 // 查找替换的元素旁边与没有相同的元素
@@ -295,6 +365,8 @@ ClearWillHappy.prototype._breakElement = function(targetX, targetY) {
         let element = elementsListInfo[x][y];
         if (element.index != targetElement || element.v) return false;
         if (element.index == targetElement && !start) {
+            elementsListInfo[x][y].index = -1;
+            elementsListInfo[x][y].visibile = false;
             breakElem.push(elementsListInfo[x][y]);
         }
         elementsListInfo[x][y].v = 1;  // 表示改点已经找过了
@@ -308,6 +380,8 @@ ClearWillHappy.prototype._breakElement = function(targetX, targetY) {
     dfs(targetX, targetY, true);
     
     if (breakElem.length >= 2) {
+        elementsListInfo[targetX][targetY].index = -1;
+        elementsListInfo[targetX][targetY].visibile = false;
         breakElem.push(elementsListInfo[targetX][targetY]);
         return breakElem;
     } 
@@ -319,13 +393,20 @@ ClearWillHappy.prototype._breakElement = function(targetX, targetY) {
 ClearWillHappy.prototype._breakAuto = function() {
     console.time("递归时间")
     const {elementsListInfo} = this;
+    let bombBall = [];
     for (let i = 0; i < elementsListInfo.length; i++) {
         let elements = elementsListInfo[i];
         elements.forEach((element, key)=>{
-            let bombBall = this._breakElement(i, key);
-            bombBall && this._setElementStatus(bombBall);
+            if (element.visibile) {
+               let temp = this._breakElement(i, key);
+               if (temp) {
+                    bombBall = bombBall.concat(temp);
+               }
+            }
+            
         })
     }
+    this._setElementStatus();
     console.timeEnd("递归时间");
 }
 
