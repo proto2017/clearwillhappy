@@ -2,8 +2,8 @@
  * Created by proto on 2017/4/20.
  */
 
-function Element({dom, size}) {
-    this.dom = dom;
+function Element({index, size}) {
+    this.index = index;
     this.size = size;
     this.x = 0;
     this.y = 0;
@@ -17,7 +17,7 @@ Element.prototype.draw = function(ctx) {
     ctx.translate(this.x, this.y);
     ctx.scale(this.scaleX, this.scaleY);
     ctx.rotate(this.rotate);
-    ctx.drawImage(this.dom, 0, 0, this.size, this.size);
+    ctx.drawImage(IMGSINFO[this.index].dom, 0, 0, this.size, this.size);
     ctx.closePath();
     ctx.restore();
 };

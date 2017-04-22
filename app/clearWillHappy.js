@@ -16,28 +16,40 @@ function ClearWillHappy(ctx, canvas) {
     this.offsetDistance = [(WIDTH- this.elementSize * this.column)/2, 10]; // canvas的偏移量
     this.bombArea = 50; // 爆炸范围
     this.bombBalls = []; // 这里有小球代表爆炸的元素
+    this.bombBallAutoCheck = true; // 开启小球自动检查爆炸
+
+    this.pos = []; //  [123, 123，123， 123] = [1, 3] 用这种键值得方式存储，方便查找鼠标的点击的是哪个元素
 }
 // 初始化
-ClearWillHappy.prototype.init = function (imgsInfo) {
+ClearWillHappy.prototype.init = function () {
     const {elementsListInfo, elementSize} = this;
     const [x, y] = this.offsetDistance;
-    let len = imgsInfo.length;
-    this.imgsInfo = imgsInfo; // 添加元素图像
+    let len = IMGSINFO.length;
+    let num = 3, size = elementSize-num; // 使图片在边框内，设置两个像素
+    // this.imgsInfo = imgsInfo; // 添加元素图像
     // 初始化面板
+    console.time("初始化时间");
     for (let i = 0; i < this.line; i++) {
         elementsListInfo[i] = [];
         for (let j = 0; j < this.column; j++) {
-            let b = {};
+            let index = Math.floor(Math.random()*len),
+                b = new Element({index, size});
             b.visibile = true; // 控制元素的显示和是否可点击
-            b.index = Math.floor(Math.random()*len);  // 图像的index，根据此参数搜索
+            b.index = index;  // 图像的index，根据此参数搜索
             b.x = j*elementSize + x;
             b.y = i*elementSize + y;
-            b.color = imgsInfo[b.index].color;
-            b.px = i;
-            b.py = j;
+            b.color = IMGSINFO[b.index].color;
+            b.vy = 1; // 给一个向下的速度，现在是0
+          //  b.px = i; // 这两个属性去掉，位置还是通过坐标来找吧，否则位置移动了就不好处理了
+           // b.py = j;
+          //  str = JSON.stringify([b.x, b.y, b.x + elementSize, b.y+elementSize]); // 这样速度比以数组的形式快
+            this.pos.push([b.x, b.y, b.x + elementSize, b.y+elementSize, i, j])
+        //    JSON.parse(str);
             elementsListInfo[i][j] = b;
         }
     }
+   // console.log(this.pos);
+    console.timeEnd("初始化时间");
     return this;
 };
 
@@ -81,26 +93,14 @@ ClearWillHappy.prototype.draw = function() {
         ctx,
         elementsListInfo,
         elementSize,
-        imgsInfo
+        line
     } = this;
-
-    elementsListInfo.forEach((lines) => {
-        lines.forEach((element) => {
-
+   
+    elementsListInfo.forEach((lines, i) => {
+        lines.forEach((element, j) => {
             if (element.visibile) { // 显示正常图片
-                let num = 3, size = elementSize-num; // 使图片在边框内，设置两个像素
-                ctx.save();
-                ctx.beginPath();
-                ctx.translate(element.x+num, element.y+num);
-                if (element.select) { // 选中了
-                   // ctx.scale(5, 5);
-                  //  ctx.rotate(50 * Math.PI /180)
-                    ctx.rect(-1, -1, elementSize-2, elementSize-2);
-                    ctx.stroke();
-                }
-                ctx.drawImage(imgsInfo[element.index].dom, 0, 0, size, size) // 这里不设置 0 0的化，旋转有问题
-                ctx.closePath();
-                ctx.restore();
+             //   debugger
+                element.draw(ctx);
             } else if (element.index == -1){ // 粉碎图片
                 this._createBombBalls(element)
                 element.isBomb = true; // 是否爆炸过
@@ -135,10 +135,34 @@ ClearWillHappy.prototype.handleEvent = function() {
 // 处理动画
 ClearWillHappy.prototype.animate = function() {
 
-    const {ctx, canvas, bombBalls, bombArea} = this;
+    const {ctx, canvas, bombBalls, bombArea, line, elementSize, elementsListInfo} = this;
+
+    if (this.bombBallAutoCheck) {
+        this._breakAuto();
+        this.bombBallAutoCheck = false;
+    }
+  //  this._breakAuto();
     // console.log(WIDTH, HEIGHT);
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
-    this.draw();
+
+    //  elementsListInfo.forEach((lines, i) => {
+    //     lines.forEach((element, j) => {
+    //         if (element.visibile) { // 显示正常图片
+    //             for (let k = i+1; k < line; k++) {
+    //                 elementsListInfo[k][j].num = 0;
+    //                 if (elementsListInfo[k][j].isBomb) {
+    //                     elementsListInfo[k][j].num += elementSize;
+    //                   //  elementsListInfo[k][j].isBomb = true;
+    //                 } else {
+    //                     break;
+    //                 }
+    //             }
+    //            element.y += elementsListInfo[i][j].num;
+    //         } 
+    //     })
+    // });
+
+    this.draw(); // 绘制元素
     if (bombBalls.length > 0) {
         let num = bombBalls.length;
         while (num--) {
@@ -186,23 +210,31 @@ ClearWillHappy.prototype._createBombBalls = function(element) {
 ClearWillHappy.prototype._findElement = function({x, y}) {
     const {
         elementsListInfo,
-        elementSize
+        elementSize,
+        pos
     } = this;
-    let elem;
-    for (let i = 0; i < elementsListInfo.length; i++) {
-        let elements = elementsListInfo[i];
-        elem = elements.filter(element => {
-            return element.x <= x && element.x+elementSize >= x && element.y <= y && element.y+elementSize >= y
-        })[0];
-        if (elem) {
-            elem.select = true;
-            break;
-        }
-    }
-    if (!elem || !elem.visibile) {
+    
+    // console.log(x, y, pos);
+    let elem = pos.filter((element, key) => {
+        return element[0] <= x && element[2] >= x && element[1] <= y && element[3] >= y
+    })[0]
+    // for (let i = 0; i < elementsListInfo.length; i++) {
+    //     let elements = elementsListInfo[i];
+    //     elem = elements.filter(element => {
+    //         return element.x <= x && element.x+elementSize >= x && element.y <= y && element.y+elementSize >= y
+    //     })[0];
+    //     if (elem) {
+    //         elem.select = true;
+    //         break;
+    //     }
+    // }
+    let sx = elem[4], sy = elem[5]
+    // console.log(elem[4], elem[5]);
+    if (!elem || !elementsListInfo[sx][sy].visibile) {
         return false;
     }
-    return elem;
+    
+    return [sx, sy];
 };
 
 // 两个元素之间替换
@@ -210,44 +242,40 @@ ClearWillHappy.prototype._replaceElement = function() {
 
     const {elementsSelect, elementsListInfo} = this;
 
-    let end = elementsSelect.pop(),
-        start = elementsSelect.pop(), // 第一次点击的元素
-        endElement = end.index,
-        startElement = start.index,
-        startColor = start.color,
-        endColor = end.color;
-    elementsListInfo[end.px][end.py].index = startElement;
-    elementsListInfo[start.px][start.py].index = endElement;
+    const [ex, ey] = elementsSelect.pop(),
+          [sx, sy] = elementsSelect.pop(), // 第一次点击的元素
+        endElement = elementsListInfo[ex][ey].index,
+        endColor = elementsListInfo[ex][sy].color,
+        startElement = elementsListInfo[sx][sy].index,
+        startColor = elementsListInfo[sx][sy].color;
+        
+    elementsListInfo[ex][ey].index = startElement;
+    elementsListInfo[sx][sy].index = endElement;
     //
-    elementsListInfo[end.px][end.py].color = startColor;
-    elementsListInfo[start.px][start.py].color = endColor;
+    elementsListInfo[ex][ey].color = startColor;
+    elementsListInfo[sx][sy].color = endColor;
 
-    const startBreak = this._breakElement(start.px, start.py);
-    const endBreak = this._breakElement(end.px, end.py);
+    const startBreak = this._breakElement(sx, sy);
+    const endBreak = this._breakElement(ex, ey);
 
-    const f1 = this._setElementStatus(start.px, start.py, startBreak);
-    const f2 = this._setElementStatus(end.px, end.py, endBreak);
-
-
-    if (!f1 && !f2) {
-        elementsListInfo[end.px][end.py].index = endElement;
-        elementsListInfo[start.px][start.py].index = startElement;
+     if (!startBreak && !endBreak) {
+        elementsListInfo[ex][ey].index = endElement;
+        elementsListInfo[sx][sy].index = startElement;
+        return;
     }
+
+    startBreak && this._setElementStatus(startBreak);
+    endBreak && this._setElementStatus(endBreak);
+
+
+   
 };
 
-ClearWillHappy.prototype._setElementStatus = function(px, py, selectElements) {
-
-    if (selectElements.length >= 2) {
-        const {elementsListInfo} = this;
-        elementsListInfo[px][py].index = -1;
-        elementsListInfo[px][py].visibile = false;
-        selectElements.map(element=>{
-            element.index = -1;
-            element.visibile = false;
-        })
-        return true;
-    }
-    return false;
+ClearWillHappy.prototype._setElementStatus = function(selectElements) {
+    selectElements.map(element=>{
+        element.index = -1;
+        element.visibile = false;
+    })
 };
 
 // 查找替换的元素旁边与没有相同的元素
@@ -276,11 +304,36 @@ ClearWillHappy.prototype._breakElement = function(targetX, targetY) {
         dfs(x, y - 1); // 左
         elementsListInfo[x][y].v = 0;  // 还原
     }
-    console.time("递归时间")
+    
     dfs(targetX, targetY, true);
-    console.timeEnd("递归时间");
-    return breakElem;
+    
+    if (breakElem.length >= 2) {
+        breakElem.push(elementsListInfo[targetX][targetY]);
+        return breakElem;
+    } 
+    return false;
 };
+
+// 自动爆炸
+// 实现自动查找的相同元素的功能
+ClearWillHappy.prototype._breakAuto = function() {
+    console.time("递归时间")
+    const {elementsListInfo} = this;
+    for (let i = 0; i < elementsListInfo.length; i++) {
+        let elements = elementsListInfo[i];
+        elements.forEach((element, key)=>{
+            let bombBall = this._breakElement(i, key);
+            bombBall && this._setElementStatus(bombBall);
+        })
+    }
+    console.timeEnd("递归时间");
+}
+
+// 自动补全的功能
+// 爆炸后自动填充爆炸的空格
+ClearWillHappy.prototype._addAuto = function() {
+
+}
 
 
 export default ClearWillHappy;
