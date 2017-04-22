@@ -51,6 +51,7 @@ ClearWillHappy.prototype.init = function () {
             elementsListInfo[i][j] = b;
         }
     }
+    console.log(elementsListInfo);
    // console.log(this.pos);
     console.timeEnd("初始化时间");
     return this;
@@ -150,7 +151,32 @@ ClearWillHappy.prototype.animate = function() {
 
      elementsListInfo.forEach((lines, i) => {
         lines.forEach((element, j) => {
-            element.y += (element.ty - element.y) * 0.08;
+            if (element.ty - element.y > 1 && element.visibile) {
+                //   let pos = this._findElement({x:element.x+10, y:element.ty+10});
+                //   console.log(i, j, pos);
+                //     console.log(JSON.stringify(elementsListInfo[i][j]));
+                //        this._replace({
+                //         sx: i,
+                //         sy: j,
+                //         ex: pos[0],
+                //         ey: pos[1]
+                //     });
+                //     console.log(JSON.stringify(elementsListInfo[i][j]));
+                element.y += (element.ty - element.y) * 0.08;
+            } else {
+                if (element.visibile) {
+                 //   console.log(1);
+                    let pos = this._findElement({x:element.x+10, y:element.ty+10});
+                    
+                //    console.log(pos, i, j);
+                    this._replace({
+                        sx: i,
+                        sy: j,
+                        ex: pos[0],
+                        ey: pos[1]
+                    });
+                }
+            }
         })
     });
 
@@ -213,7 +239,12 @@ ClearWillHappy.prototype.animate = function() {
     requestAnimationFrame(() => {
         this.animate();
     });
+    // setTimeout(() => {
+    //     this.animate();
+    // },  500);
 }
+
+
 
 ClearWillHappy.prototype._createBombBalls = function(element) {
     const { x, y, isBomb, color } = element;
@@ -258,12 +289,13 @@ ClearWillHappy.prototype._findElement = function({x, y}) {
     //         break;
     //     }
     // }
-    let sx = elem[4], sy = elem[5]
-  //   console.log("呵呵", elem[4], elem[5], elementsListInfo[sx][sy], "呵呵");
-    if (!elem ) {
+ //   console.log(elem);
+   
+   //  console.log("呵呵", elem[4], elem[5], elementsListInfo[sx][sy], "呵呵");
+    if (!elem) {
         return false;
     }
-    
+     let sx = elem[4], sy = elem[5]
     return [sx, sy];
 };
 
@@ -274,9 +306,10 @@ ClearWillHappy.prototype._replaceElement = function() {
 
     const [ex, ey] = elementsSelect.pop(),
           [sx, sy] = elementsSelect.pop(), // 第一次点击的元素
+          
         endElement = elementsListInfo[ex][ey].index,
-        endColor = elementsListInfo[ex][sy].color,
-        startElement = elementsListInfo[sx][sy].index,
+         endColor = elementsListInfo[ex][sy].color,
+         startElement = elementsListInfo[sx][sy].index,
         startColor = elementsListInfo[sx][sy].color;
         
     elementsListInfo[ex][ey].index = startElement;
@@ -285,21 +318,91 @@ ClearWillHappy.prototype._replaceElement = function() {
     elementsListInfo[ex][ey].color = startColor;
     elementsListInfo[sx][sy].color = endColor;
 
+  //  this._replace({sx, sy, ex, ey});
+
     const startBreak = this._breakElement(sx, sy);
     const endBreak = this._breakElement(ex, ey);
 
      if (!startBreak && !endBreak) {
         elementsListInfo[ex][ey].index = endElement;
         elementsListInfo[sx][sy].index = startElement;
+        this._replace({sx, sy, ex, ey});
+      //  this._replace(elementsListInfo[ex][ey], elementsListInfo[sx][sy]);
         return;
     }
 
-    startBreak && this._setElementStatus(startBreak);
-    endBreak && this._setElementStatus(endBreak);
+  this.bombBallAutoCheck = true;
+ // endBreak && this._setElementStatus();
 
 
    
 };
+
+
+ClearWillHappy.prototype._replace = function({sx, sy, ex, ey}) {
+
+    // 浅拷贝的简单实现,但是很尴尬，这样source相当于重新赋值了，并没有引用
+  //  console.log(sx, sy, ex, ey);
+    const {elementsListInfo} = this;
+ //   console.log(JSON.stringify(elementsListInfo[sx][sy]), JSON.stringify(elementsListInfo[ex][ey]));
+    let sourceCopy = elementsListInfo[sx][sy],
+        targetCopy = elementsListInfo[ex][ey],
+
+        endElement = targetCopy.index,
+        endColor = targetCopy.color,
+        endVisible = targetCopy.visibile,
+        endBomb = targetCopy.isBomb,
+        endTy = targetCopy.ty,
+        endY = targetCopy.y,
+         startElement = sourceCopy.index,
+         startColor = sourceCopy.color,
+        startVisible = sourceCopy.visibile,
+        startBomb = sourceCopy.isBomb,
+        startTy = sourceCopy.ty,
+
+        startY = sourceCopy.y;
+
+
+    targetCopy.y = startTy;
+    sourceCopy.y = endTy;
+
+    targetCopy.ty = startTy;
+    sourceCopy.ty = endTy;
+        
+    targetCopy.index = startElement;
+    sourceCopy.index = endElement;
+
+    //
+    targetCopy.color = startColor;
+    sourceCopy.color = endColor;
+
+
+    targetCopy.visibile = startVisible;
+    sourceCopy.visibile = endVisible;
+
+    targetCopy.isBomb = startBomb;
+    sourceCopy.isBomb = endBomb;
+
+  //  console.log(JSON.stringify(elementsListInfo[sx][sy]), JSON.stringify(elementsListInfo[ex][ey]));
+
+    // for (let key in sourceCopy) {
+    //     if (sourceCopy.hasOwnProperty(key)) {
+
+    //         console.log(sourceCopy, targetCopy);
+    //         let sourceAttr = sourceCopy[key],
+    //             targetAttr = targetCopy[key];
+            
+    //         sourceCopy[key] = targetAttr;
+    //         targetCopy[key] = sourceAttr;
+
+    //         console.log(sourceCopy, targetCopy);
+    //     }
+    // }
+
+    // elementsListInfo[sx][sy] = JSON.parse(targetCopy);
+    // elementsListInfo[ex][ey] = JSON.parse(sourceCopy);
+
+}
 
 // 找到了可以爆炸的地方
 ClearWillHappy.prototype._setElementStatus = function() {
@@ -328,7 +431,10 @@ ClearWillHappy.prototype._setElementStatus = function() {
         elementsListInfo[i].forEach((item,col)=>{
             if (!item.visibile) {
                 for (let k = i - 1; k >= 0; k--) {
-                    elementsListInfo[k][col].ty += elementSize;
+                    if (elementsListInfo[k][col].visibile) {
+                        elementsListInfo[k][col].ty += elementSize;
+                        
+                    }
                 }
             }
             
@@ -365,8 +471,8 @@ ClearWillHappy.prototype._breakElement = function(targetX, targetY) {
         let element = elementsListInfo[x][y];
         if (element.index != targetElement || element.v) return false;
         if (element.index == targetElement && !start) {
-            elementsListInfo[x][y].index = -1;
-            elementsListInfo[x][y].visibile = false;
+            // elementsListInfo[x][y].index = -1;
+            // elementsListInfo[x][y].visibile = false;
             breakElem.push(elementsListInfo[x][y]);
         }
         elementsListInfo[x][y].v = 1;  // 表示改点已经找过了
@@ -382,8 +488,12 @@ ClearWillHappy.prototype._breakElement = function(targetX, targetY) {
     if (breakElem.length >= 2) {
         elementsListInfo[targetX][targetY].index = -1;
         elementsListInfo[targetX][targetY].visibile = false;
-        breakElem.push(elementsListInfo[targetX][targetY]);
-        return breakElem;
+        breakElem.map(element=>{
+            element.index = -1;
+            element.visibile = false;
+        })
+      //  breakElem.push(elementsListInfo[targetX][targetY]);
+        return true;
     } 
     return false;
 };
@@ -393,15 +503,12 @@ ClearWillHappy.prototype._breakElement = function(targetX, targetY) {
 ClearWillHappy.prototype._breakAuto = function() {
     console.time("递归时间")
     const {elementsListInfo} = this;
-    let bombBall = [];
     for (let i = 0; i < elementsListInfo.length; i++) {
         let elements = elementsListInfo[i];
         elements.forEach((element, key)=>{
             if (element.visibile) {
-               let temp = this._breakElement(i, key);
-               if (temp) {
-                    bombBall = bombBall.concat(temp);
-               }
+               this._breakElement(i, key);
+             
             }
             
         })
