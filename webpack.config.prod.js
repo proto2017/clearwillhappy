@@ -29,7 +29,7 @@ module.exports = {
             loaders: ['style', 'css']
         }, {
             test: /\.html$/,
-            loader: "raw-loader" // loaders: ['raw-loader'] is also perfectly acceptable.
+            loader: "html-withimg-loader" // loaders: ['raw-loader'] is also perfectly acceptable.
         }, {
             test: /\.js$/,
             exclude: /node_modules/,
